@@ -13,9 +13,6 @@ contract KipuBank {
                              STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Dirección que despliega el contrato (propietario administrativo opcional)
-    address public immutable i_propietario;
-
     /// @notice Límite máximo global de ETH que puede contener el banco (en wei)
     uint256 public immutable i_bankCap;
 
@@ -45,23 +42,54 @@ contract KipuBank {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Evento emitido cuando un usuario deposita ETH
+    /// @param depositante Dirección que realiza el depósito
+    /// @param value Cantidad depositada en wei
+    /// @param balanceNuevo Balance resultante del usuario en wei
     event KipuBank_Deposito(address indexed depositante, uint256 value, uint256 balanceNuevo);
 
     /// @notice Evento emitido cuando un usuario retira ETH
+    /// @param retirador Dirección que realiza el retiro
+    /// @param value Cantidad retirada en wei
+    /// @param balanceNuevo Balance resultante del usuario en wei
     event KipuBank_Extraccion(address indexed retirador, uint256 value, uint256 balanceNuevo);
 
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Error: el depósito supera la capacidad máxima del banco
     error KipuBank_mayorAlBalance(uint256 intento, uint256 disponible);
+
+    /// @notice Error: monto igual a cero no permitido
     error KipuBank_MontoCero();
+
+    /// @notice Error: balance insuficiente para la extracción solicitada
     error KipuBank_BalanceInsuficiente(uint256 solicitado, uint256 disponible);
+
+    /// @notice Error: extracción supera el límite máximo por transacción
     error KipuBank_LimiteExtraccionExcedido(uint256 solicitado, uint256 limite);
+
+    /// @notice Error: transferencia fallida al enviar ETH
     error KipuBank_TransferenciaFallida(bytes razon);
 
+    /// @notice Error: reentrada detectada
+    error KipuBank_Reentrancy();
+
     /*//////////////////////////////////////////////////////////////
-                                MODIFIERS
+                             REENTRANCY GUARD
+    //////////////////////////////////////////////////////////////*/
+
+    bool private locked;
+
+    modifier nonReentrant() {
+        if (locked) revert KipuBank_Reentrancy();
+        locked = true;
+        _;
+        locked = false;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                             MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
     modifier noCero(uint256 _value) {
@@ -79,10 +107,12 @@ contract KipuBank {
                              CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
+    /// @param _bankCap Capacidad máxima del banco en wei
+    /// @param _limiteExtraccionPorTx Límite máximo por extracción en wei
     constructor(uint256 _bankCap, uint256 _limiteExtraccionPorTx) {
-        i_propietario = msg.sender;
         i_bankCap = _bankCap;
         i_limiteExtraccionPorTx = _limiteExtraccionPorTx;
+        locked = false;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -103,11 +133,14 @@ contract KipuBank {
                              EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Permite al usuario depositar ETH en su bóveda
     function deposito() external payable noCero(msg.value) menorAlBalance(msg.value) {
         _deposito(msg.sender, msg.value);
     }
 
-    function extraccion(uint256 _cantidad) external noCero(_cantidad) {
+    /// @notice Permite al usuario retirar ETH de su bóveda
+    /// @param _cantidad Cantidad a retirar en wei
+    function extraccion(uint256 _cantidad) external noCero(_cantidad) nonReentrant {
         if (_cantidad > i_limiteExtraccionPorTx) {
             revert KipuBank_LimiteExtraccionExcedido(_cantidad, i_limiteExtraccionPorTx);
         }
@@ -128,6 +161,9 @@ contract KipuBank {
         emit KipuBank_Extraccion(msg.sender, _cantidad, s_balances[msg.sender]);
     }
 
+    /// @notice Devuelve el balance registrado de un usuario en la bóveda
+    /// @param _usuario Dirección del usuario
+    /// @return balance Cantidad en wei
     function getBalance(address _usuario) external view returns (uint256 balance) {
         return s_balances[_usuario];
     }
