@@ -65,12 +65,14 @@ README.md
 * Patrón **checks-effects-interactions**.
 * Variables `immutable` y `public` para mayor transparencia.
 * Funciones `private` para encapsular lógica interna.
+* Protección contra reentradas con **nonReentrant**.
+* Documentación completa con **NatSpec**.
 
 ---
 
 ## 🔗 Contrato en el Block Explorer
 
-👉 Ver en [Sepolia Etherscan](https://sepolia.etherscan.io/address/0x24AdA5Ee0f6614e3b89B1AD6515b3De5dCA96A09)
+👉 Ver en [Sepolia Etherscan](https://sepolia.etherscan.io/address/0x1A9fD8a2064c67Cc8Ae8046c2b71724C570B6a87)
 
 
 ---
